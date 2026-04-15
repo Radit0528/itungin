@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,9 +32,18 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::middleware('auth')->group(function () {
     
     // Rute Dashboard: Memanggil resources/views/dashboard.blade.php
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Tambahkan Rute Transaksi di sini
+    Route::get('/transaksi', function () {
+        return view('transaksi');
+    })->name('transaksi');
+
+    // Rute Transaksi Baru
+    Route::get('/transaksi', [TransactionController::class, 'index'])->name('transaksi');
+    Route::post('/transaksi', [TransactionController::class, 'store'])->name('transaksi.store');
+    Route::put('/transaksi/{id}', [TransactionController::class, 'update'])->name('transaksi.update');
+    Route::delete('/transaksi/{id}', [TransactionController::class, 'destroy'])->name('transaksi.destroy');
 
     // Rute Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

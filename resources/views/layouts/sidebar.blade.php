@@ -8,8 +8,16 @@
     </a>
 
     <ul class="nav-menu">
-        <li class="nav-item"><a href="#" class="nav-link active"><i class="bi bi-grid-fill"></i> Dashboard</a></li>
-        <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-receipt"></i> Transaksi</a></li>
+        <li class="nav-item">
+            <a href="{{ route('dashboard') }}" class="nav-link {{ Request::is('dashboard') ? 'active' : '' }}">
+                <i class="bi bi-grid-fill"></i> Dashboard
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ route('transaksi') }}" class="nav-link {{ Request::is('transaksi') ? 'active' : '' }}">
+                <i class="bi bi-receipt"></i> Transaksi
+            </a>
+        </li>
         <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-bullseye"></i> Targetku</a></li>
         <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-robot"></i> AI Assistant</a></li>
     </ul>

@@ -1,0 +1,26 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Transaction extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'tipe_transaksi',
+        'jumlah',
+        'kategori',
+        'deskripsi',
+        'tanggal'
+    ];
+
+    // Relasi: Transaksi ini milik 1 User
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+}
