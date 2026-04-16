@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TargetController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ChatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +26,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [AuthController::class, 'register']);
+
 
 
 // ==========================================
@@ -49,6 +51,12 @@ Route::middleware('auth')->group(function () {
     // Rute Target
     Route::resource('targets', TargetController::class)->except(['show', 'edit']);
     Route::post('/targets/{id}/add-fund', [TargetController::class, 'addFund'])->name('targets.add-fund');
+
+    // Rute Chatbot
+    Route::get('/ai-assistant', function () {
+        return view('chat');
+    })->name('ai.assistant');
+    Route::post('/chat-process', [ChatController::class, 'sendMessage'])->name('chat.process');
 
     // Rute Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
