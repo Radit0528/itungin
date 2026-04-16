@@ -1,9 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\TargetController;
+use App\Http\Controllers\TransactionController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,7 +46,12 @@ Route::middleware('auth')->group(function () {
     Route::put('/transaksi/{id}', [TransactionController::class, 'update'])->name('transaksi.update');
     Route::delete('/transaksi/{id}', [TransactionController::class, 'destroy'])->name('transaksi.destroy');
 
+    // Rute Target
+    Route::resource('targets', TargetController::class)->except(['show', 'edit']);
+    Route::post('/targets/{id}/add-fund', [TargetController::class, 'addFund'])->name('targets.add-fund');
+
     // Rute Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    
     
 });
