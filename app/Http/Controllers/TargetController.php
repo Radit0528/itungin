@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Target;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -97,6 +98,16 @@ class TargetController extends Controller
         // Kurangi saldo user
         $user->saldo -= $jumlahFund;
         $user->save();
+
+        // Simpan sebagai transaksi pengeluaran
+        Transaction::create([
+            'user_id' => $user->id,
+            'tipe_transaksi' => 'pengeluaran',
+            'jumlah' => $jumlahFund,
+            'kategori' => 'Target: ' . ($target->nama_target ?? 'Tabungan'),
+            'deskripsi' => 'Menambahkan dana ke target: ' . ($target->nama_target ?? ''),
+            'tanggal' => now(),
+        ]);
 
         // Tambah jumlah terkumpul di target
         $target->jumlah_terkumpul += $jumlahFund;
