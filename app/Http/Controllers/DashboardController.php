@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -12,12 +11,11 @@ class DashboardController extends Controller
     public function index()
     {
         $userId = Auth::id();
+        $user = Auth::user();
         $now = Carbon::now();
 
-        // 1. Hitung Total Kekayaan (Semua Pemasukan - Semua Pengeluaran)
-        $totalPemasukan = Transaction::where('user_id', $userId)->where('tipe_transaksi', 'pemasukan')->sum('jumlah');
-        $totalPengeluaran = Transaction::where('user_id', $userId)->where('tipe_transaksi', 'pengeluaran')->sum('jumlah');
-        $totalKekayaan = $totalPemasukan - $totalPengeluaran;
+        // 1. Ambil saldo user langsung
+        $totalKekayaan = $user->saldo ?? 0;
 
         // 2. Hitung Pemasukan & Pengeluaran Bulan Ini saja
         $pemasukanBulanIni = Transaction::where('user_id', $userId)

@@ -170,13 +170,23 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius: 12px;">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
     <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
             <h1 class="page-title">Targetku</h1>
             <p class="page-subtitle m-0">Curation your financial milestones with editorial precision.</p>
         </div>
-        <div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-white px-4 py-2 rounded-pill shadow-sm d-flex align-items-center">
+                <i class="bi bi-wallet2 text-primary me-2"></i>
+                <span class="fw-bold">Rp {{ number_format($user->saldo ?? 0, 0, ',', '.') }}</span>
+            </div>
             <button type="button" class="btn btn-primary-custom text-white d-flex align-items-center px-4 shadow-sm"
                 style="border-radius: 50px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalTambahTarget">
                 <i class="bi bi-plus-circle me-2"></i> Tambah Target

@@ -13,8 +13,9 @@ class TargetController extends Controller
      */
     public function index()
     {
+        $user = Auth::user();
         $targets = Target::where('user_id', Auth::id())->get();
-        return view('targets.index', compact('targets'));
+        return view('targets.index', compact('targets', 'user'));
     }
 
     /**
@@ -85,7 +86,20 @@ class TargetController extends Controller
         ]);
 
         $target = Target::findOrFail($id);
-        $target->jumlah_terkumpul += $request->jumlah_fund;
+        $user = Auth::user();
+        $jumlahFund = $request->jumlah_fund;
+
+        // Cek apakah saldo cukup
+        if ($user->saldo < $jumlahFund) {
+            return redirect()->route('targets.index')->with('error', 'Saldo tidak cukup untuk menambahkan dana ke target!');
+        }
+
+        // Kurangi saldo user
+        $user->saldo -= $jumlahFund;
+        $user->save();
+
+        // Tambah jumlah terkumpul di target
+        $target->jumlah_terkumpul += $jumlahFund;
 
         // Update status jika target tercapai
         if ($target->jumlah_terkumpul >= $target->target_jumlah) {
