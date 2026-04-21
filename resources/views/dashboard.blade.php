@@ -51,7 +51,7 @@
                 </div>
             </div>
             <div style="height: 280px; width: 100%;">
-                <canvas id="financeChart" data-labels="{{ json_encode($chartLabels) }}" data-actual="{{ json_encode($chartDataActual) }}"></canvas>
+                <canvas id="financeChart" data-labels="{{ json_encode($chartLabels) }}" data-actual="{{ json_encode($chartDataActual) }}" data-target="{{ json_encode($chartDataTarget) }}">></canvas>
             </div>
         </div>
     </div>
@@ -98,7 +98,7 @@
     // PERUBAHAN DI SINI: JavaScript mengambil data dari Canvas. Dijamin VS Code tidak akan merah!
     const labels = JSON.parse(canvas.dataset.labels);
     const dataActual = JSON.parse(canvas.dataset.actual);
-    const dataTarget = [10, 18, 28, 32, 33, 36, 42];
+    const dataTarget = JSON.parse(canvas.dataset.target);
 
     new Chart(ctx, {
         type: 'line',
