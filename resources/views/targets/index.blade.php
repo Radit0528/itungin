@@ -97,6 +97,10 @@
             color: #ef4444;
         }
 
+        .terkumpul .info-value{
+            color: #10b981;
+        }
+
         .btn-tambah-dana {
             background-color: #dbeafe;
             color: #1e40af;
@@ -266,7 +270,7 @@
                     <!-- Info Box -->
                     <div class="info-box">
                         <div class="info-grid">
-                            <div>
+                            <div class="terkumpul">
                                 <div class="info-label">TERKUMPUL</div>
                                 <div class="info-value">{{ formatRupiahShort($target->jumlah_terkumpul) }}</div>
                             </div>

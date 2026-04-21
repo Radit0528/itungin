@@ -28,6 +28,7 @@ class ChatController extends Controller
             }
 
             $systemPrompt = "Kamu adalah Itungin AI. Tugasmu membantu {$user->name} mencatat keuangan.
+            Selalu gunakan status 'aktif' untuk target baru.
             Selalu sertakan kode JSON di AKHIR jawaban jika user ingin mencatat:
 
             1. TRANSAKSI: [ACTION_TRANSACTION]{\"tipe\":\"pengeluaran\",\"jumlah\":10000,\"kategori\":\"Makanan\",\"deskripsi\":\"Makan\"}[/ACTION]
@@ -111,12 +112,19 @@ class ChatController extends Controller
             if ($data) {
                 Target::create([
                     'user_id'          => $user->id,
-                    'nama_target'      => $data['nama'],
+                    'nama_target'      => $data['nama'], 
                     'target_jumlah'    => $data['jumlah'],
                     'jumlah_terkumpul' => 0,
-                    'tanggal_target'   => now()->addMonths(6),
-                    'status'           => 'in_progress',
-                    'kategori'         => $data['kategori'] ?? 'Impian',
+                    
+                    // SOLUSI TANGGAL: Karena di tabel wajib ada tanggal, 
+                    // kita kasih default hari ini + 1 tahun jika AI tidak kasih tanggal.
+                    'tanggal_target'   => now()->addYear(), 
+                    
+                    // SOLUSI STATUS: Karena tabel kamu ENUM, kita paksa jadi 'aktif'.
+                    // Apapun yang dikirim AI (in_progress, dll) tetap masuk sebagai 'aktif'.
+                    'status'           => 'aktif', 
+                    
+                    'kategori'         => $data['kategori'] ?? 'Tabungan',
                 ]);
             }
         }
