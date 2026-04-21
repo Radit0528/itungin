@@ -53,9 +53,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/targets/{id}/add-fund', [TargetController::class, 'addFund'])->name('targets.add-fund');
 
     // Rute Chatbot
-    Route::get('/ai-assistant', function () {
-        return view('chat');
-    })->name('ai.assistant');
+    // routes/web.php
+Route::get('/ai-assistant', [App\Http\Controllers\Api\ChatController::class, 'index'])->name('ai.index');
     Route::post('/chat-process', [ChatController::class, 'sendMessage'])->name('chat.process');
 
     // Rute Logout

@@ -89,16 +89,38 @@
     </header>
 
     <div id="chat-container" class="flex-1 overflow-y-auto p-6 md:px-24 py-12 space-y-8 scroll-smooth">
-        
-        <div id="welcome-hero" class="max-w-2xl mx-auto py-10 text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl mb-6">
-                <i class="bi bi-stars fs-2"></i>
+    
+    @if($history->isEmpty())
+    <div id="welcome-hero" class="max-w-2xl mx-auto py-10 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl mb-6">
+            <i class="bi bi-stars fs-2"></i>
+        </div>
+        <h1 class="text-3xl font-black text-slate-800 mb-3 tracking-tight">Halo, {{ Auth::user()->name }}!</h1>
+        <p class="text-slate-500 leading-relaxed text-sm max-w-sm mx-auto">Tanyakan apapun soal rencana keuanganmu hari ini.</p>
+    </div>
+    @endif
+
+    @foreach($history as $chat)
+        <div class="flex justify-end mb-6">
+            <div class="bg-blue-600 text-white px-6 py-4 rounded-[2rem] rounded-tr-none shadow-xl max-w-[80%] text-sm leading-relaxed">
+                {{ $chat->message }}
             </div>
-            <h1 class="text-3xl font-black text-slate-800 mb-3 tracking-tight">Halo, {{ Auth::user()->name }}!</h1>
-            <p class="text-slate-500 leading-relaxed text-sm max-w-sm mx-auto">Tanyakan apapun soal rencana keuanganmu hari ini. Aku siap membantu menganalisis data.</p>
         </div>
 
-    </div>
+        <div class="flex justify-start mb-6">
+            <div class="flex gap-4 max-w-[90%]">
+                <div class="w-10 h-10 rounded-2xl bg-white shadow-sm border flex items-center justify-center text-blue-600 shrink-0">
+                    <i class="bi bi-robot fs-5"></i>
+                </div>
+                <div class="bg-white border border-slate-100 text-slate-700 px-6 py-4 rounded-[2rem] rounded-tl-none shadow-sm text-sm leading-relaxed">
+                    {!! nl2br(e($chat->reply)) !!}
+                </div>
+            </div>
+        </div>
+    @endforeach
+    
+    <div id="new-messages-anchor"></div>
+</div>
 
     <div class="flex-none p-6 md:px-24 bg-white border-t border-slate-100">
         <div class="max-w-4xl mx-auto">
@@ -138,10 +160,13 @@
     const sendBtn = document.getElementById('send-btn');
     const welcomeHero = document.getElementById('welcome-hero');
 
-    // Fungsi otomatis scroll ke bawah setiap ada pesan baru
+    // Fungsi otomatis scroll ke bawah
     function scrollToBottom() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
+
+    // Jalankan scroll ke bawah saat halaman pertama kali dibuka (untuk history)
+    window.onload = scrollToBottom;
 
     function appendMessage(text, isUser) {
         if (welcomeHero) welcomeHero.style.display = 'none';
@@ -149,16 +174,19 @@
         const wrapper = document.createElement('div');
         wrapper.className = isUser ? 'flex justify-end mb-6' : 'flex justify-start mb-6';
 
+        // Gunakan replace untuk handle newline pada pesan baru
+        const formattedText = text.replace(/\n/g, '<br>');
+
         const bubble = isUser 
             ? `<div class="bg-blue-600 text-white px-6 py-4 rounded-[2rem] rounded-tr-none shadow-xl shadow-blue-50 max-w-[80%] text-sm leading-relaxed">
-                ${text}
+                ${formattedText}
                </div>`
             : `<div class="flex gap-4 max-w-[90%]">
                 <div class="w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-blue-600 shrink-0">
                     <i class="bi bi-robot fs-5"></i>
                 </div>
                 <div class="bg-white border border-slate-100 text-slate-700 px-6 py-4 rounded-[2rem] rounded-tl-none shadow-sm text-sm leading-relaxed">
-                    ${text}
+                    ${formattedText}
                 </div>
                </div>`;
 
@@ -169,13 +197,11 @@
 
     async function handleSendMessage(msg = null) {
         const text = msg || userInput.value;
-        if (!text) return;
+        if (!text.trim()) return;
 
-        // 1. Munculkan pesan User
         appendMessage(text, true);
         userInput.value = '';
 
-        // 2. MUNCULKAN LOADING (Typing Indicator)
         const loadingId = 'loading-' + Date.now();
         const loadingWrapper = document.createElement('div');
         loadingWrapper.id = loadingId;
@@ -206,25 +232,19 @@
                 body: JSON.stringify({ message: text })
             });
 
-            console.log("Status Code:", response.status);
             const data = await response.json();
-            
-            // 3. HAPUS LOADING setelah respon diterima
             const loadingElement = document.getElementById(loadingId);
             if (loadingElement) loadingElement.remove();
 
             if (data.status === 'success') {
                 appendMessage(data.reply, false);
             } else {
-                appendMessage("Error: " + data.message, false);
+                appendMessage("Maaf, sepertinya ada kendala: " + data.message, false);
             }
 
         } catch (error) {
-            // 4. HAPUS LOADING jika terjadi error koneksi
             const loadingElement = document.getElementById(loadingId);
             if (loadingElement) loadingElement.remove();
-            
-            console.error("Fetch Error:", error);
             appendMessage('Gagal koneksi ke server. Cek internet kamu ya!', false);
         }
     }

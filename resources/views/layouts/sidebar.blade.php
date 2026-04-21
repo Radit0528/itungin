@@ -22,7 +22,7 @@
         <li class="nav-item"><a href="{{ route('targets.index') }}"
                 class="nav-link {{ Request::is('targets*') ? 'active' : '' }}"><i class="bi bi-bullseye"></i>
                 Targetku</a></li>
-        <li class="nav-item"><a href="{{ route('ai.assistant') }}" class="nav-link {{ Request::is('ai-assistant*') ? 'active' : '' }}">
+        <li class="nav-item"><a href="{{ route('ai.index') }}" class="nav-link {{ Request::is('ai-assistant*') ? 'active' : '' }}">
             <i class="bi bi-robot"></i> AI Assistant</a>
         </li>
     </ul>

@@ -8,9 +8,27 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Transaction;
 use App\Models\Target;
+use App\Models\Chat; // Tambahkan ini
 
 class ChatController extends Controller
 {
+    // app/Http/Controllers/Api/ChatController.php
+
+public function index()
+{
+    $user = Auth::user();
+
+    // Ambil history chat
+    $history = Chat::where('user_id', $user->id)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+    // Jika nama filenya ai-assistant.blade.php, pakai ini:
+    return view('chat', compact('history'));
+    
+    // ATAU jika nama filenya chat.blade.php, pakai ini:
+    // return view('chat', compact('history'));
+}
     public function sendMessage(Request $request)
     {
         try {
@@ -19,76 +37,90 @@ class ChatController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Sesi habis, silakan login ulang.'], 401);
             }
 
-            // 1. Ambil semua kunci dari config/services.php
-            // Pastikan kamu sudah menambahkan kunci ini di config (cek langkah di bawah)
             $apiKeys = config('services.gemini.keys');
-            
             if (empty($apiKeys)) {
-                return response()->json(['status' => 'error', 'message' => 'Tidak ada API Key yang tersedia.'], 500);
+                return response()->json(['status' => 'error', 'message' => 'Tidak ada API Key tersedia.'], 500);
             }
 
+            // 1. AMBIL HISTORY CHAT (5 Pesan Terakhir)
+            $history = Chat::where('user_id', $user->id)
+                        ->latest()
+                        ->limit(5)
+                        ->get()
+                        ->reverse();
+
+            // 2. SUSUN FORMAT CONTENTS UNTUK GEMINI
+            $contents = [];
+            foreach ($history as $chat) {
+                $contents[] = ['role' => 'user', 'parts' => [['text' => $chat->message]]];
+                $contents[] = ['role' => 'model', 'parts' => [['text' => $chat->reply]]];
+            }
+
+            // 3. SYSTEM PROMPT & PESAN BARU
             $systemPrompt = "Kamu adalah Itungin AI. Tugasmu membantu {$user->name} mencatat keuangan.
             Selalu gunakan status 'aktif' untuk target baru.
             Selalu sertakan kode JSON di AKHIR jawaban jika user ingin mencatat:
-
             1. TRANSAKSI: [ACTION_TRANSACTION]{\"tipe\":\"pengeluaran\",\"jumlah\":10000,\"kategori\":\"Makanan\",\"deskripsi\":\"Makan\"}[/ACTION]
             2. TARGET BARU: [ACTION_TARGET_NEW]{\"nama\":\"Motor\",\"jumlah\":5000000,\"kategori\":\"Kendaraan\"}[/ACTION]
             3. NABUNG KE TARGET: [ACTION_TARGET_UPDATE]{\"nama\":\"Motor\",\"jumlah\":100000}[/ACTION]
-            
             Jawab dengan singkat, ramah, dan memotivasi.";
+
+            // Tambahkan pesan user saat ini ke array contents
+            $contents[] = ['role' => 'user', 'parts' => [['text' => $systemPrompt . "\n\nUser: " . $request->message]]];
 
             $finalReply = null;
             $success = false;
 
-            // 2. LOGIKA ROTASI API (Mencoba satu per satu jika limit)
+            // 4. LOGIKA ROTASI API
             foreach ($apiKeys as $key) {
                 if (!$key) continue;
 
-                // Gunakan gemini-1.5-flash untuk kuota lebih besar (1500/hari)
+                // Pakai v1/gemini-1.5-flash (Versi paling stabil & jatah banyak di 2026)
                 $response = Http::post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={$key}", [
-                    'contents' => [
-                        ['role' => 'user', 'parts' => [['text' => $systemPrompt . "\nUser: " . $request->message]]]
-                    ]
+                    'contents' => $contents
                 ]);
 
                 if ($response->successful()) {
                     $finalReply = $response->json()['candidates'][0]['content']['parts'][0]['text'] ?? '';
                     $success = true;
-                    break; // Berhenti looping jika sukses
+                    break; 
                 }
 
-                // Jika error 429 (Limit habis), lanjut ke Key berikutnya
-                if ($response->status() == 429) {
-                    continue;
-                }
+                if ($response->status() == 429) continue;
 
-                // Jika error lain, langsung stop
                 return response()->json(['status' => 'error', 'message' => 'Gemini Error: ' . $response->body()], $response->status());
             }
 
-            if (!$success) {
-                return response()->json(['status' => 'error', 'message' => 'Semua API Key sedang limit. Coba lagi nanti ya!'], 429);
+            if ($response->successful()) {
+                $finalReply = $response->json()['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                $success = true;
+            
+                // A. JALANKAN LOGIKA DATABASE DULU (Pakai teks asli yang ada JSON-nya)
+                $this->handleDatabaseActions($finalReply, $user);
+            
+                // B. BERSIHKAN TEKS (Hapus tag [ACTION]...[/ACTION])
+                $cleanReply = preg_replace('/\[ACTION_.*?\].*?\[\/ACTION\]/s', '', $finalReply);
+                $cleanReply = trim($cleanReply);
+            
+                // C. SIMPAN KE HISTORY (Simpan teks yang sudah BERSIH)
+                Chat::create([
+                    'user_id' => $user->id,
+                    'message' => $request->message,
+                    'reply'   => $cleanReply // <-- Ini kuncinya, simpan yang bersih saja
+                ]);
+            
+                // D. KIRIM RESPON KE VIEW
+                return response()->json([
+                    'status' => 'success',
+                    'reply' => $cleanReply
+                ]);
             }
-
-            // 3. PROSES SIMPAN DATABASE (Memanggil fungsi bantuan di bawah)
-            $this->handleDatabaseActions($finalReply, $user);
-
-            // 4. BERSIHKAN TEKS DARI KODE JSON
-            $cleanReply = preg_replace('/\[ACTION_.*?\].*?\[\/ACTION\]/s', '', $finalReply);
-
-            return response()->json([
-                'status' => 'success',
-                'reply' => trim($cleanReply)
-            ]);
-
+            
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => 'Laravel Error: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Fungsi Terpisah untuk Mengurus Database
-     */
     private function handleDatabaseActions($reply, $user)
     {
         // A. Simpan Transaksi
@@ -115,15 +147,8 @@ class ChatController extends Controller
                     'nama_target'      => $data['nama'], 
                     'target_jumlah'    => $data['jumlah'],
                     'jumlah_terkumpul' => 0,
-                    
-                    // SOLUSI TANGGAL: Karena di tabel wajib ada tanggal, 
-                    // kita kasih default hari ini + 1 tahun jika AI tidak kasih tanggal.
                     'tanggal_target'   => now()->addYear(), 
-                    
-                    // SOLUSI STATUS: Karena tabel kamu ENUM, kita paksa jadi 'aktif'.
-                    // Apapun yang dikirim AI (in_progress, dll) tetap masuk sebagai 'aktif'.
                     'status'           => 'aktif', 
-                    
                     'kategori'         => $data['kategori'] ?? 'Tabungan',
                 ]);
             }
