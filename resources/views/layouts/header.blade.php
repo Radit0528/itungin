@@ -13,11 +13,11 @@
                 </div>
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="dropdownUser">
-                <li><a class="dropdown-item py-2" href="#"><i class="bi bi-person me-2"></i> Profil</a></li>
+                <!-- <li><a class="dropdown-item py-2" href="#"><i class="bi bi-person me-2"></i> Profil</a></li>
                 <li><a class="dropdown-item py-2" href="#"><i class="bi bi-gear me-2"></i> Pengaturan</a></li>
                 <li>
                     <hr class="dropdown-divider">
-                </li>
+                </li> -->
                 <li>
                     <form action="{{ route('logout') }}" method="POST">
                         @csrf

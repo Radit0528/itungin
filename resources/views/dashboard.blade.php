@@ -157,8 +157,8 @@
                         color: '#f3f4f6',
                         drawBorder: false
                     },
-                    min: 0,
-                    max: 90
+                    // min: 0,
+                    // max: 90
                 }
             },
             interaction: {

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaction;
-use App\Models\Target; // Import model Target
+use App\Models\Target;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
@@ -15,10 +15,10 @@ class DashboardController extends Controller
         $user = Auth::user();
         $now = Carbon::now();
 
-        // 1. Ambil saldo user langsung (Total Kekayaan)
+        // 1. Ambil saldo user saat ini
         $totalKekayaan = $user->saldo ?? 0;
 
-        // 2. Hitung Pemasukan & Pengeluaran Bulan Ini saja untuk ringkasan kartu
+        // 2. Hitung Ringkasan Bulan Ini
         $pemasukanBulanIni = Transaction::where('user_id', $userId)
             ->where('tipe_transaksi', 'pemasukan')
             ->whereMonth('tanggal', $now->month)
@@ -31,48 +31,69 @@ class DashboardController extends Controller
             ->whereYear('tanggal', $now->year)
             ->sum('jumlah');
 
-        // 3. Ambil 4 Aktifitas Transaksi Terakhir
+        // 3. Aktifitas Terakhir
         $aktifitasTerbaru = Transaction::where('user_id', $userId)
             ->orderBy('tanggal', 'desc')
             ->orderBy('created_at', 'desc')
             ->take(4)
             ->get();
 
-        // 4. Siapkan Data Grafik (6 Bulan Terakhir)
+        // ============================================================
+        // 4. LOGIKA GRAFIK SALDO BERJALAN (1 BULAN)
+        // ============================================================
         $chartLabels = [];
         $chartDataActual = [];
-        $chartDataTarget = []; // Inisialisasi array untuk data target
-        
-        for ($i = 5; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
-            $chartLabels[] = strtoupper($date->translatedFormat('M')); // Format: JAN, FEB, MAR
-            
-            // Hitung Pemasukan Bulanan (Actual)
-            $pemasukanBulan = Transaction::where('user_id', $userId)
-                ->where('tipe_transaksi', 'pemasukan')
-                ->whereMonth('tanggal', $date->month)
-                ->whereYear('tanggal', $date->year)
-                ->sum('jumlah');
+        $chartDataTarget = [];
 
-            // Hitung Total Target Bulanan (Berdasarkan tanggal_target)
-            $targetBulan = Target::where('user_id', $userId)
-                ->whereMonth('tanggal_target', $date->month)
-                ->whereYear('tanggal_target', $date->year)
-                ->sum('target_jumlah');
+        // Ambil total target bulan ini (untuk garis hijau)
+        $targetBulanIni = Target::where('user_id', $userId)
+            ->whereMonth('tanggal_target', $now->month)
+            ->whereYear('tanggal_target', $now->year)
+            ->sum('target_jumlah');
 
-            // Konversi ke angka jutaan agar skala grafik lebih rapi (misal: 1.500.000 menjadi 1.5)
-            $chartDataActual[] = $pemasukanBulan / 1000000;
-            $chartDataTarget[] = $targetBulan / 1000000;
+        $targetValue = $targetBulanIni / 1000000;
+
+        // Cari Saldo Awal (Saldo sekarang dikurangi hasil bersih bulan ini)
+        // Ini agar grafik mulai dari titik saldo kamu sebelum bulan ini dimulai
+        $netBulanIni = $pemasukanBulanIni - $pengeluaranBulanIni;
+        $saldoAwalBulan = ($totalKekayaan - $netBulanIni);
+
+        $runningBalance = $saldoAwalBulan;
+
+        $daysInMonth = $now->daysInMonth;
+
+        // Kita ubah agar looping HANYA BERHENTI di tanggal hari ini
+        $hariIni = $now->day;
+        $allTransactions = Transaction::where('user_id', $userId)
+            ->whereMonth('tanggal', $now->month)
+            ->whereYear('tanggal', $now->year)
+            ->get();
+
+        for ($day = 1; $day <= $hariIni; $day++) {
+            $chartLabels[] = $day;
+
+            $pemasukanHariIni = $allTransactions->where('tipe_transaksi', 'pemasukan')
+                ->filter(fn($trx) => Carbon::parse($trx->tanggal)->day == $day)->sum('jumlah');
+
+            $pengeluaranHariIni = $allTransactions->where('tipe_transaksi', 'pengeluaran')
+                ->filter(fn($trx) => Carbon::parse($trx->tanggal)->day == $day)->sum('jumlah');
+
+            // Saldo bertambah jika ada pemasukan, berkurang jika ada pengeluaran
+            $runningBalance += ($pemasukanHariIni - $pengeluaranHariIni);
+
+            // Masukkan ke grafik (dalam satuan juta)
+            $chartDataActual[] = $runningBalance / 1000000;
+            $chartDataTarget[] = $targetValue;
         }
 
         return view('dashboard', compact(
-            'totalKekayaan', 
-            'pemasukanBulanIni', 
-            'pengeluaranBulanIni', 
+            'totalKekayaan',
+            'pemasukanBulanIni',
+            'pengeluaranBulanIni',
             'aktifitasTerbaru',
             'chartLabels',
             'chartDataActual',
-            'chartDataTarget' // Variabel target sekarang ikut dikirim ke view
+            'chartDataTarget'
         ));
     }
 }
