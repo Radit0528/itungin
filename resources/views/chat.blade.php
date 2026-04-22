@@ -4,12 +4,19 @@
 
 @section('content')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        corePlugins: {
+            preflight: false, // Ini kunci rahasianya! Mencegah Tailwind merusak CSS Bootstrap & Sidebar
+        }
+    }
+</script>
 
 <style>
     /* Mengunci font dan scrollbar */
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-    
     
     /* Sembunyikan footer bawaan layout agar tidak merusak h-screen */
     footer, .footer, .main-footer {
@@ -27,12 +34,12 @@
         border-top-right-radius: 0 !important;
     }
 
-    /* Pastikan pembungkus utama di layout app tidak punya padding/margin tambahan */
     .content-wrapper, .main-content, #app {
         height: 100vh !important;
         display: flex;
         flex-direction: column;
     }
+    
     html, body {
         height: 100%;
         margin: 0;
@@ -40,26 +47,18 @@
         overflow: hidden !important;
     }
     
-    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    /* 2. UBAH DI SINI: Jangan gunakan tag 'body', tapi buat class khusus agar sidebar tidak kena efeknya */
+    .ai-chat-area { 
+        font-family: 'Plus Jakarta Sans', sans-serif; 
+    }
 
     /* Custom Scrollbar untuk area chat agar tetap clean */
-    #chat-container::-webkit-scrollbar {
-        width: 5px;
-    }
-    #chat-container::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    #chat-container::-webkit-scrollbar-thumb {
-        background: #e2e8f0;
-        border-radius: 10px;
-    }
-    #chat-container::-webkit-scrollbar-thumb:hover {
-        background: #cbd5e1;
-    }
+    #chat-container::-webkit-scrollbar { width: 5px; }
+    #chat-container::-webkit-scrollbar-track { background: transparent; }
+    #chat-container::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    #chat-container::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
 
-    .dot-pulse {
-        animation: pulse 1.5s infinite ease-in-out;
-    }
+    .dot-pulse { animation: pulse 1.5s infinite ease-in-out; }
     .delay-200 { animation-delay: 0.2s; }
     .delay-400 { animation-delay: 0.4s; }
 
@@ -69,9 +68,8 @@
     }
 </style>
 
-@section('content')
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<div class="flex flex-col h-screen overflow-hidden bg-[#f8fafc] pt-0 mt-0">
+<div class="ai-chat-area flex flex-col h-screen overflow-hidden bg-[#f8fafc] pt-0 mt-0">
     
     <header class="flex-none h-20 bg-white border-b border-slate-200 flex items-center justify-between px-10 z-20 shadow-sm">
         <div class="flex items-center gap-4">
