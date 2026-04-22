@@ -23,7 +23,6 @@
                         <div class="mini-card-title">PENDAPATAN BULANAN</div>
                         <h4 class="mini-card-amount">Rp {{ number_format($pemasukanBulanIni, 0, ',', '.') }}</h4>
                     </div>
-                    <div class="text-green">+4%</div>
                 </div>
             </div>
             <div class="custom-card py-3">
@@ -33,7 +32,6 @@
                         <div class="mini-card-title">PENGELUARAN BULANAN</div>
                         <h4 class="mini-card-amount">Rp {{ number_format($pengeluaranBulanIni, 0, ',', '.') }}</h4>
                     </div>
-                    <div class="text-red">-12%</div>
                 </div>
             </div>
         </div>
@@ -60,7 +58,7 @@
         <div class="custom-card" style="background-color: #f8faff;">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="fw-bold m-0">Aktifitas Terbaru</h5>
-                <a href="#" class="text-decoration-none fw-bold" style="font-size: 0.8rem; color: #0d52c6;">View All</a>
+                <!-- <a href="#" class="text-decoration-none fw-bold" style="font-size: 0.8rem; color: #0d52c6;">View All</a> -->
             </div>
 
             <div class="activity-list">
