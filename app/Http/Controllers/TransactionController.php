@@ -4,47 +4,41 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Transaction;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class TransactionController extends Controller
 {
     // 1. Tampilkan halaman transaksi beserta datanya
     public function index(Request $request)
     {
+        /** @var User $user */
         $user = Auth::user();
         $userId = Auth::id();
 
-        // Ambil saldo dari user
         $saldo = $user->saldo ?? 0;
 
-        // Hitung total untuk filter (tetap dihitung semua untuk kartu ringkasan atas)
         $totalPemasukan = Transaction::where('user_id', $userId)->where('tipe_transaksi', 'pemasukan')->sum('jumlah');
         $totalPengeluaran = Transaction::where('user_id', $userId)->where('tipe_transaksi', 'pengeluaran')->sum('jumlah');
 
-        // 1. Tangkap parameter filter dari URL (default: 'semua')
         $filter = $request->query('filter', 'semua');
-
-        // 2. Buat Query dasar
         $query = Transaction::where('user_id', $userId);
 
-        // 3. Kelompokkan/Filter berdasarkan pilihan
         if ($filter === 'pemasukan') {
             $query->where('tipe_transaksi', 'pemasukan');
         } elseif ($filter === 'pengeluaran') {
             $query->where('tipe_transaksi', 'pengeluaran');
         }
 
-        // 4. Eksekusi Query
         $transactions = $query->orderBy('tanggal', 'desc')->orderBy('created_at', 'desc')->get();
 
-        // Kirim variabel $filter ke view agar tombolnya bisa menyala sesuai pilihan
         return view('transaksi', compact('saldo', 'totalPemasukan', 'totalPengeluaran', 'transactions', 'filter'));
     }
 
     // 2. Simpan data transaksi baru
     public function store(Request $request)
     {
-        // Validasi input
         $request->validate([
             'tipe_transaksi' => 'required|in:pemasukan,pengeluaran',
             'jumlah'         => 'required|numeric|min:1',
@@ -53,37 +47,34 @@ class TransactionController extends Controller
             'tanggal'        => 'required|date',
         ]);
 
-        // Ambil user yang login
+        /** @var User $user */
         $user = Auth::user();
 
-        // Jika pengeluaran, cek apakah saldo cukup
-        if ($request->tipe_transaksi === 'pengeluaran') {
-            if (($user->saldo ?? 0) < $request->jumlah) {
-                return redirect()->route('transaksi')->with('error', 'Saldo tidak cukup untuk transaksi ini!');
+        // Cek saldo jika pengeluaran
+        if ($request->tipe_transaksi === 'pengeluaran' && ($user->saldo ?? 0) < $request->jumlah) {
+            return redirect()->back()->with('error', 'Saldo tidak cukup!');
+        }
+
+        // Gunakan Database Transaction agar data aman jika terjadi error di tengah jalan
+        DB::transaction(function () use ($request, $user) {
+            Transaction::create([
+                'user_id'        => $user->id,
+                'tipe_transaksi' => $request->tipe_transaksi,
+                'jumlah'         => $request->jumlah,
+                'kategori'       => $request->kategori,
+                'deskripsi'      => $request->deskripsi,
+                'tanggal'        => $request->tanggal,
+            ]);
+
+            // Update Saldo
+            if ($request->tipe_transaksi === 'pemasukan') {
+                $user->saldo += $request->jumlah;
+            } else {
+                $user->saldo -= $request->jumlah;
             }
-        }
+            $user->save();
+        });
 
-        // Simpan ke database
-        Transaction::create([
-            'user_id'        => Auth::id(), // Assign ke user yang login
-            'tipe_transaksi' => $request->tipe_transaksi,
-            'jumlah'         => $request->jumlah,
-            'kategori'       => $request->kategori,
-            'deskripsi'      => $request->deskripsi,
-            'tanggal'        => $request->tanggal,
-        ]);
-
-        // Update saldo user
-        if ($request->tipe_transaksi === 'pemasukan') {
-            // Pemasukan: tambahkan ke saldo
-            $user->saldo = ($user->saldo ?? 0) + $request->jumlah;
-        } else {
-            // Pengeluaran: kurangi dari saldo
-            $user->saldo = ($user->saldo ?? 0) - $request->jumlah;
-        }
-        $user->save();
-
-        // Kembalikan ke halaman transaksi dengan pesan sukses
         return redirect()->route('transaksi')->with('success', 'Transaksi berhasil ditambahkan!');
     }
 
@@ -98,16 +89,29 @@ class TransactionController extends Controller
             'tanggal'        => 'required|date',
         ]);
 
-        // Cari transaksi berdasarkan ID dan pastikan itu milik user yang sedang login
-        $transaction = Transaction::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
-        
-        $transaction->update([
-            'tipe_transaksi' => $request->tipe_transaksi,
-            'jumlah'         => $request->jumlah,
-            'kategori'       => $request->kategori,
-            'deskripsi'      => $request->deskripsi,
-            'tanggal'        => $request->tanggal,
-        ]);
+        /** @var User $user */
+        $user = Auth::user();
+        $transaction = Transaction::where('id', $id)->where('user_id', $user->id)->firstOrFail();
+
+        DB::transaction(function () use ($request, $user, $transaction) {
+            // 1. Kembalikan saldo ke kondisi sebelum transaksi lama dibuat (Revert)
+            if ($transaction->tipe_transaksi === 'pemasukan') {
+                $user->saldo -= $transaction->jumlah;
+            } else {
+                $user->saldo += $transaction->jumlah;
+            }
+
+            // 2. Terapkan saldo baru berdasarkan data input
+            if ($request->tipe_transaksi === 'pemasukan') {
+                $user->saldo += $request->jumlah;
+            } else {
+                $user->saldo -= $request->jumlah;
+            }
+
+            // 3. Simpan perubahan
+            $transaction->update($request->all());
+            $user->save();
+        });
 
         return redirect()->route('transaksi')->with('success', 'Transaksi berhasil diperbarui!');
     }
@@ -115,10 +119,22 @@ class TransactionController extends Controller
     // 4. Hapus data transaksi
     public function destroy($id)
     {
-        // Cari transaksi dan hapus
-        $transaction = Transaction::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
-        $transaction->delete();
+        /** @var User $user */
+        $user = Auth::user();
+        $transaction = Transaction::where('id', $id)->where('user_id', $user->id)->firstOrFail();
 
-        return redirect()->route('transaksi')->with('success', 'Transaksi berhasil dihapus!');
+        DB::transaction(function () use ($user, $transaction) {
+            // Kembalikan saldo saat transaksi dihapus
+            if ($transaction->tipe_transaksi === 'pemasukan') {
+                $user->saldo -= $transaction->jumlah;
+            } else {
+                $user->saldo += $transaction->jumlah;
+            }
+
+            $user->save();
+            $transaction->delete();
+        });
+
+        return redirect()->route('transaksi')->with('success', 'Transaksi berhasil dihapus dan saldo diperbarui!');
     }
 }
